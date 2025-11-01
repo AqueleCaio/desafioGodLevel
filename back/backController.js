@@ -75,54 +75,205 @@ function helperDataReport(payload) {
 
     // 🔧 Mapa de relações diretas do schema
     const RELATIONS = {
-      saude:      { pais: 'pais_id', indicador: 'indicador_id' },
-      economia:   { pais: 'pais_id', indicador: 'indicador_id' },
-      ambiente:   { pais: 'pais_id', indicador: 'indicador_id' },
-      tecnologia: { pais: 'pais_id', indicador: 'indicador_id' },
-      demografia: { pais: 'pais_id', indicador: 'indicador_id' },
+      brands: {
+        sub_brands: 'brand_id',
+        stores: 'brand_id',
+        channels: 'brand_id',
+        categories: 'brand_id',
+        products: 'brand_id',
+        option_groups: 'brand_id',
+        items: 'brand_id',
+        payment_types: 'brand_id',
+        coupons: 'brand_id',
+      },
+      sub_brands: {
+        brands: 'brand_id',
+        stores: 'sub_brand_id',
+        categories: 'sub_brand_id',
+        products: 'sub_brand_id',
+        option_groups: 'sub_brand_id',
+        items: 'sub_brand_id',
+        customers: 'sub_brand_id',
+        sales: 'sub_brand_id',
+      },
+      stores: {
+        brands: 'brand_id',
+        sub_brands: 'sub_brand_id',
+        customers: 'store_id',
+        sales: 'store_id',
+      },
+      channels: {
+        brands: 'brand_id',
+        sales: 'channel_id',
+      },
+      categories: {
+        brands: 'brand_id',
+        sub_brands: 'sub_brand_id',
+        products: 'category_id',
+        option_groups: 'category_id',
+        items: 'category_id',
+      },
+      products: {
+        brands: 'brand_id',
+        sub_brands: 'sub_brand_id',
+        categories: 'category_id',
+        product_sales: 'product_id',
+      },
+      option_groups: {
+        brands: 'brand_id',
+        sub_brands: 'sub_brand_id',
+        categories: 'category_id',
+        item_product_sales: 'option_group_id',
+        item_item_product_sales: 'option_group_id',
+      },
+      items: {
+        brands: 'brand_id',
+        sub_brands: 'sub_brand_id',
+        categories: 'category_id',
+        item_product_sales: 'item_id',
+        item_item_product_sales: 'item_id',
+      },
+      customers: {
+        stores: 'store_id',
+        sub_brands: 'sub_brand_id',
+        sales: 'customer_id',
+      },
+      sales: {
+        stores: 'store_id',
+        sub_brands: 'sub_brand_id',
+        customers: 'customer_id',
+        channels: 'channel_id',
+        product_sales: 'sale_id',
+        delivery_sales: 'sale_id',
+        delivery_addresses: 'sale_id',
+        payments: 'sale_id',
+        coupon_sales: 'sale_id',
+      },
+      product_sales: {
+        sales: 'sale_id',
+        products: 'product_id',
+        item_product_sales: 'product_sale_id',
+      },
+      item_product_sales: {
+        product_sales: 'product_sale_id',
+        items: 'item_id',
+        option_groups: 'option_group_id',
+        item_item_product_sales: 'item_product_sale_id',
+      },
+      item_item_product_sales: {
+        item_product_sales: 'item_product_sale_id',
+        items: 'item_id',
+        option_groups: 'option_group_id',
+      },
+      delivery_sales: {
+        sales: 'sale_id',
+        delivery_addresses: 'delivery_sale_id',
+      },
+      delivery_addresses: {
+        sales: 'sale_id',
+        delivery_sales: 'delivery_sale_id',
+      },
+      payment_types: {
+        brands: 'brand_id',
+        payments: 'payment_type_id',
+      },
+      payments: {
+        sales: 'sale_id',
+        payment_types: 'payment_type_id',
+      },
+      coupons: {
+        brands: 'brand_id',
+        coupon_sales: 'coupon_id',
+      },
+      coupon_sales: {
+        sales: 'sale_id',
+        coupons: 'coupon_id',
+      },
     };
 
-    // ----------------------------
-    // 3) Montar FROM e JOINs seguros
-    // ----------------------------
-    const firstTable = typeof tables[0] === 'string' ? tables[0] : tables[0].name;
-    let fromPart = firstTable;
 
-    if (tables.length > 1) {
-      for (let i = 1; i < tables.length; i++) {
-        const t = tables[i];
-        const name = typeof t === 'string' ? t : t.name;
+  // Função auxiliar para buscar recursivamente relacionamento
+  function findRelationPath(fromTables, targetTable, relations, visited = new Set()) {
+    for (const from of fromTables) {
+      if (relations[targetTable]?.[from]) return { source: targetTable, target: from, column: relations[targetTable][from] };
+      if (relations[from]?.[targetTable]) return { source: from, target: targetTable, column: relations[from][targetTable] };
 
-        let joinClause = '';
-        const type = (t && t.type) ? t.type.toUpperCase() : joinType || 'INNER JOIN';
+      visited.add(from);
 
-        // 1️⃣ Se o front definir manualmente a condição
-        if (t?.on?.left && t?.on?.right) {
-          joinClause = `${type} ${name} ON ${t.on.left} = ${t.on.right}`;
-        } else {
-          // 2️⃣ Tenta achar uma relação válida com QUALQUER tabela já incluída
-          const relatedTable = tables
-            .slice(0, i)
-            .map(tt => (typeof tt === 'string' ? tt : tt.name))
-            .find(prev => RELATIONS[name]?.[prev] || RELATIONS[prev]?.[name]);
-
-          if (relatedTable && RELATIONS[name]?.[relatedTable]) {
-            const fk = `${name}.${RELATIONS[name][relatedTable]}`;
-            joinClause = `${type} ${name} ON ${fk} = ${relatedTable}.id`;
-          } else if (relatedTable && RELATIONS[relatedTable]?.[name]) {
-            const fk = `${relatedTable}.${RELATIONS[relatedTable][name]}`;
-            joinClause = `${type} ${name} ON ${fk} = ${name}.id`;
-          } else {
-            console.warn(`⚠️ Nenhuma relação encontrada para ${name}, JOIN ignorado.`);
-            continue;
-          }
+      // Explora recursivamente relações do "from"
+      for (const next of Object.keys(relations[from] || {})) {
+        if (!visited.has(next)) {
+          const path = findRelationPath([next], targetTable, relations, visited);
+          if (path) return path;
         }
-        fromPart += `\n${joinClause}`;
-
       }
     }
+    return null; // Nenhum caminho encontrado
+  }
 
-    const tableNames = ['pais', 'saude', 'tecnologia', 'ambiente', 'demografia', 'indicador', 'economia'];
+  // ----------------------------
+  // 3) Montar FROM e JOINs seguros
+  // ----------------------------
+  const firstTable = typeof tables[0] === 'string' ? tables[0] : tables[0].name;
+  let fromPart = firstTable;
+
+  if (tables.length > 1) {
+    for (let i = 1; i < tables.length; i++) {
+      const t = tables[i];
+      const name = typeof t === 'string' ? t : t.name;
+
+      let joinClause = '';
+      const type = (t && t.type) ? t.type.toUpperCase() : joinType || 'INNER JOIN';
+
+      // 1️⃣ Se o front definir manualmente a condição
+      if (t?.on?.left && t?.on?.right) {
+        joinClause = `${type} ${name} ON ${t.on.left} = ${t.on.right}`;
+      } else {
+        // 2️⃣ Busca caminho de relação com qualquer tabela já incluída
+        const includedTables = tables.slice(0, i).map(tt => (typeof tt === 'string' ? tt : tt.name));
+        const path = findRelationPath(includedTables, name, RELATIONS);
+
+        if (path) {
+          const { source, target, column } = path;
+
+          // Determina direção correta
+          if (RELATIONS[source]?.[target]) {
+            joinClause = `${type} ${name} ON ${name}.${column} = ${target}.id`;
+          } else {
+            joinClause = `${type} ${name} ON ${source}.${column} = ${name}.id`;
+          }
+        } else {
+          console.warn(`⚠️ Nenhuma relação encontrada para ${name}, JOIN ignorado.`);
+          continue;
+        }
+      }
+
+      fromPart += `\n${joinClause}`;
+    }
+  }
+
+
+    const tableNames = [
+      "brands",
+      "sub_brands",
+      "stores",
+      "channels",
+      "categories",
+      "products",
+      "option_groups",
+      "items",
+      "customers",
+      "sales",
+      "product_sales",
+      "item_product_sales",
+      "item_item_product_sales",
+      "delivery_sales",
+      "delivery_addresses",
+      "payment_types",
+      "payments",
+      "coupons",
+      "coupon_sales"
+    ];
 
     // ----------------------------
     // 4) Montar WHERE (valores já escapados aqui)
