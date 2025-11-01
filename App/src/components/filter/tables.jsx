@@ -1,10 +1,15 @@
-import React from 'react';
+import { translations } from '../../services/frontController';
 
 function Tables({ selectedTable, setSelectedTable, selectedTables, setSelectedTables, availableTables, removeTable, updateAvailableTables }) {
   // garante que só tenha valores únicos
   const uniqueTables = [...new Set(
     availableTables.map(t => (typeof t === 'string' ? t : t.name))
   )];
+
+  // Função para pegar tradução da tabela
+  const translateTable = (tableName) => {
+    return translations.tables[tableName] || tableName; // retorna tradução ou o próprio nome se não houver
+  };
 
   return (
     <div className="section">
@@ -25,7 +30,7 @@ function Tables({ selectedTable, setSelectedTable, selectedTables, setSelectedTa
           </option>
           {uniqueTables.map((tableName) => (
             <option key={tableName} value={tableName}>
-              {tableName}
+              {translateTable(tableName)}
             </option>
           ))}
         </select>
@@ -33,7 +38,7 @@ function Tables({ selectedTable, setSelectedTable, selectedTables, setSelectedTa
         <div className="selected-tables-container">
           {selectedTables.map(table => (
             <div key={table} className="selected-table-badge">
-              {table}
+              {translateTable(table)}
               <button 
                 onClick={() => removeTable(table)}
                 className='remove_button'
@@ -50,7 +55,7 @@ function Tables({ selectedTable, setSelectedTable, selectedTables, setSelectedTa
             if (selectedTable && !selectedTables.includes(selectedTable)) {
               const newTables = [...selectedTables, selectedTable];
               setSelectedTables(newTables);
-              updateAvailableTables(selectedTable, newTables); // só atualiza aqui
+              updateAvailableTables(selectedTable, newTables);
               setSelectedTable('');
             }
           }}

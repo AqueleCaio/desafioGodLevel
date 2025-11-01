@@ -30,19 +30,6 @@ function FilterMain() {
   const [filters, setFilters] = useState([]);
   const [orderBy, setOrderBy] = useState([{ column: null, direction: 'ASC' }]);
 
-  // Apenas para colunas numéricas que fazem sentido para agregação
-  const aggregatableColumns = columns.filter(col => {
-    const lower = col.name.toLowerCase();
-
-    // Campos que não fazem sentido em agregação
-    const invalid = /(nome|iso3|categoria|createdat|updatedat)/i.test(lower);
-
-    // Colunas que provavelmente são numéricas
-    const validNumeric = /(valor|ano|populacao|renda|indice|taxa|id)/i.test(lower);
-
-    return !invalid && validNumeric;
-  });
-
 
   // Carrega os nomes da tabela
   useEffect(() => {
@@ -161,6 +148,13 @@ function FilterMain() {
   const { setQuery, setResult } = useQuery();
 
   const handleGenerateReport = async () => {
+    const validOrderBy = orderBy
+      .filter(ob => ob && ob.column) // só mantém colunas válidas
+      .map(ob => ({
+        column: ob.column,
+        direction: ob.direction || 'ASC'
+      }));
+
     const payload = {
       tables: selectedTables.map(name => ({ name })),
       joinType,
@@ -168,9 +162,7 @@ function FilterMain() {
       aggregation: selectedAgg || [],
       having: having || [],
       filters,
-      orderBy: orderBy
-        .filter(ob => ob.column) // remove itens sem coluna selecionada
-        .map(ob => ({ column: ob.column, direction: ob.direction || 'ASC' }))
+      ...(validOrderBy.length > 0 ? { orderBy: validOrderBy } : {}) // ✅ só adiciona se tiver algo
     };
 
     const result = await handleReportGeneration(payload);
@@ -183,6 +175,7 @@ function FilterMain() {
         : []
     });
   };
+
 
 
   return (
@@ -212,7 +205,7 @@ function FilterMain() {
       />
 
       <Agregation 
-        columns={aggregatableColumns} 
+        columns={columns} 
         selectedAgg={selectedAgg} 
         setSelectedAgg={setSelectedAgg}
         setSelectedHaving={setHaving} 
