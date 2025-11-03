@@ -1,6 +1,6 @@
-# Entendendo decisões arquiteturais e a estrutura do projeto
+# Documentação Completa do Projeto
 
-## Estrutura conceitual do projeto
+## Estrutura do projeto
 
 O sistema foi dividido em **duas camadas principais**:
 
