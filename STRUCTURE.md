@@ -89,7 +89,7 @@ Ele coleta todas as informações selecionadas pelo usuário (tabelas, colunas, 
 * Envia via `fetch` e/ou `axios` para o endpoint `/query-report` do backend com o arquivo `src/services/frontController.js`.
 
   Vale ressaltar que `src/components/filterMain.jsx` é o **principal componente** em relação a todos os filtros que se pode aplicar.
-Portanto, esse componente importa os outros componentes irão compor o mesmo. Todos esses componentes estão presentes em `src/components/filter/`
+Portanto, esse componente importa os outros componentes que irão compor o mesmo. Todos esses componentes estão presentes em `src/components/filter/`
 
 <img src="./images/filtermain.png" width=440 height=440>
 
