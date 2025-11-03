@@ -73,7 +73,7 @@ async function builderQuery({
   // Adiciona LIMIT padrão se não foi definido pelo usuário
   const hasLimit = /\blimit\b/i.test(fullQuery);
   if (!hasLimit) {
-    fullQuery += `\nLIMIT 5000`;
+    fullQuery += `\nLIMIT 1000`;
   }
 
   fullQuery += ';';
