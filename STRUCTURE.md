@@ -64,7 +64,7 @@ Recebe o payload já tratado e executa a consulta via Prisma ou `queryRaw`.
 
 ## Frontend
 
-### 1. `src/components/filter/filterMain.jsx` — Construção do payload
+### 1. `src/components/filterMain.jsx` — Construção do payload
 
 Este é o **componente central** da parte de filtros.
 Ele coleta todas as informações selecionadas pelo usuário (tabelas, colunas, filtros, agregações, joins) e monta o **payload JSON** que será enviado ao backend.
@@ -87,6 +87,11 @@ Ele coleta todas as informações selecionadas pelo usuário (tabelas, colunas, 
   }
   ```
 * Envia via `fetch` e/ou `axios` para o endpoint `/query-report` do backend com o arquivo `src/services/frontController.js`.
+
+  Vale ressaltar que `src/components/filterMain.jsx` é o **principal componente** em relação a todos os filtros que se pode aplicar.
+Portanto, esse componente importa os outros componentes irão compor o mesmo. Todos esses componentes estão presentes em `src/components/filter/`
+
+<img src="./images/filtermain.png" width=440 height=440>
 
 ---
 
