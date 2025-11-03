@@ -87,7 +87,7 @@ O projeto está dividido em duas pastas principais:
 
 ```
 
-A documentação detalhada da estrutura pode ser consultada em [STRUCTURE.md](./STRUCTURE.md).
+A documentação detalhada da estrutura pode ser consultada em [Documentação](Documentação.pdf).
 
 ---
 
