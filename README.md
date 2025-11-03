@@ -116,8 +116,15 @@ A documentação detalhada da estrutura pode ser consultada em [Documentação](
 4. **Execute as migrações e o seed**
 
    ```bash
+   npx prisma generate
    npx prisma migrate dev
-   npx prisma db seed
+   npx prisma db push
+   ```
+
+5. **Alimente o banco**
+   Depois de ter criado o banco, agora será necessário alimentá-lo com os dados utilizando o `back/generate_data.py`
+   ```bash
+   python generate_data.py
    ```
 
 5. **Inicie o servidor**
