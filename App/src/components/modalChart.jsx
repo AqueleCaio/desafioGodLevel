@@ -20,98 +20,21 @@ const ModalChart = ({
   const [maxItems, setMaxItems] = useState(10);
   const [sortBy, setSortBy] = useState('value');
 
-  // 🔥 FUNÇÃO ATUALIZADA: Formatar nome da coluna com traduções
-  const formatColumnName = (columnName) => {
-    if (!columnName) return '';
-    
-    // 1️⃣ PRIMEIRO: Busca tradução exata no dicionário
-    const exactTranslation = translations.columns[columnName];
-    if (exactTranslation) {
-      return exactTranslation;
+  // Resetar estados quando os dados mudam (nova consulta)
+  useEffect(() => {
+    if (columns && columns.length > 0) {
+      setLocalSelectedCategories([]);
+      setLocalSelectedValueColumns([]);
+      onCategoriesChange([]);
+      onValueColumnsChange([]);
     }
-    
-    // 2️⃣ SEGUNDO: Para colunas com prefixos de agregação
-    const aggregationPrefixes = ['sum_', 'avg_', 'count_', 'max_', 'min_'];
-    for (const prefix of aggregationPrefixes) {
-      if (columnName.startsWith(prefix)) {
-        const baseColumn = columnName.replace(prefix, '');
-        const baseTranslation = translations.columns[baseColumn];
-        
-        if (baseTranslation) {
-          const prefixTranslations = {
-            'sum_': `Soma de ${baseTranslation}`,
-            'avg_': `Média de ${baseTranslation}`,
-            'count_': `Contagem de ${baseTranslation}`,
-            'max_': `Máximo de ${baseTranslation}`,
-            'min_': `Mínimo de ${baseTranslation}`
-          };
-          return prefixTranslations[prefix];
-        }
-        
-        // 🔥 NOVO: Se não encontrou tradução para a coluna base, tenta traduzir a tabela
-        const tableName = extractAndTranslateTableName(baseColumn);
-        if (tableName) {
-          const columnWithoutTable = baseColumn.replace(new RegExp(`^${extractTablePrefix(baseColumn)}_?`), '');
-          const columnTranslation = translations.columns[columnWithoutTable] || formatColumnNameFallback(columnWithoutTable);
-          
-          const prefixTranslations = {
-            'sum_': `Soma de ${tableName} - ${columnTranslation}`,
-            'avg_': `Média de ${tableName} - ${columnTranslation}`,
-            'count_': `Contagem de ${tableName}`,
-            'max_': `Máximo de ${tableName} - ${columnTranslation}`,
-            'min_': `Mínimo de ${tableName} - ${columnTranslation}`
-          };
-          return prefixTranslations[prefix];
-        }
-      }
-    }
-    
-    // 3️⃣ TERCEIRO: Tenta traduzir nome da tabela + coluna
-    const tableName = extractAndTranslateTableName(columnName);
-    if (tableName) {
-      const columnWithoutTable = columnName.replace(new RegExp(`^${extractTablePrefix(columnName)}_?`), '');
-      const columnTranslation = translations.columns[columnWithoutTable] || formatColumnNameFallback(columnWithoutTable);
-      return `${tableName} - ${columnTranslation}`;
-    }
-    
-    // 4️⃣ QUARTO: Fallback - Formatação básica
-    return formatColumnNameFallback(columnName);
-  };
+  }, [columns, rows]);
 
-  // 🔥 FUNÇÃO AUXILIAR: Extrai prefixo da tabela
-  const extractTablePrefix = (columnName) => {
-    const parts = columnName.split('_');
-    for (let i = 0; i < parts.length; i++) {
-      const potentialTableName = parts.slice(0, i + 1).join('_');
-      if (translations.tableNames[potentialTableName]) {
-        return potentialTableName;
-      }
-    }
-    return '';
-  };
-
-  // 🔥 FUNÇÃO AUXILIAR: Formatação fallback do nome da coluna
-  const formatColumnNameFallback = (columnName) => {
-    const words = columnName.split('_');
-    const capitalizedWords = words.map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    );
-    return capitalizedWords.join(' ');
-  };
-
-  // 🔥 FUNÇÃO ATUALIZADA: Determinar a tabela de origem com tradução
-  const getFieldTable = (fieldName) => {
-    // Usa a função de extração de nome de tabela para obter a tradução
-    const tableName = extractAndTranslateTableName(fieldName);
-    return tableName || 'Consulta';
-  };
-
-  // 🔥 CORREÇÃO: Inicializar estados locais quando o modal abre OU quando as colunas mudam
+  // Inicializar estados locais quando o modal abre
   useEffect(() => {
     if (isOpen) {
       setLocalSelectedCategories([...selectedCategories]);
       
-      // 🔥 CORREÇÃO CRÍTICA: Filtrar apenas as métricas que ainda existem nas colunas atuais
       const availableValueColumns = selectedValueColumns.filter(column => 
         columns.some(col => {
           const colName = col.column || col.dataKey || col;
@@ -136,13 +59,97 @@ const ModalChart = ({
     return () => document.removeEventListener('keydown', handleEsc);
   }, [onClose]);
 
-  // 🔥 CORREÇÃO: Função para detectar colunas numéricas baseada nos dados reais
+  // Extrai prefixo da tabela do nome da coluna
+  const extractTablePrefix = (columnName) => {
+    const parts = columnName.split('_');
+    for (let i = 0; i < parts.length; i++) {
+      const potentialTableName = parts.slice(0, i + 1).join('_');
+      if (translations.tables[potentialTableName]) {
+        return potentialTableName;
+      }
+    }
+    return '';
+  };
+
+  // Formatação fallback do nome da coluna
+  const formatColumnNameFallback = (columnName) => {
+    const words = columnName.split('_');
+    const capitalizedWords = words.map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    );
+    return capitalizedWords.join(' ');
+  };
+
+  // Formata nome da coluna com traduções
+  const formatColumnName = (columnName) => {
+    if (!columnName) return '';
+    
+    // Busca tradução exata no dicionário
+    const exactTranslation = translations.columns[columnName];
+    if (exactTranslation) {
+      return exactTranslation;
+    }
+    
+    // Processa colunas com prefixos de agregação
+    const aggregationPrefixes = ['sum_', 'avg_', 'count_', 'max_', 'min_'];
+    for (const prefix of aggregationPrefixes) {
+      if (columnName.startsWith(prefix)) {
+        const baseColumn = columnName.replace(prefix, '');
+        const baseTranslation = translations.columns[baseColumn];
+        
+        if (baseTranslation) {
+          const prefixTranslations = {
+            'sum_': `Soma de `,
+            'avg_': `Média de `,
+            'count_': `Contagem de `,
+            'max_': `Máximo de `,
+            'min_': `Mínimo de `
+          };
+          return prefixTranslations[prefix];
+        }
+        
+        // Tenta traduzir a tabela se não encontrou tradução para coluna base
+        const tableName = extractAndTranslateTableName(baseColumn);
+        if (tableName) {
+          const columnWithoutTable = baseColumn.replace(new RegExp(`^${extractTablePrefix(baseColumn)}_?`), '');
+          const columnTranslation = translations.columns[columnWithoutTable] || formatColumnNameFallback(columnWithoutTable);
+          
+          const prefixTranslations = {
+            'sum_': `Soma de ${columnTranslation}`,
+            'avg_': `Média de ${columnTranslation}`,
+            'count_': `Contagem de ${tableName}`,
+            'max_': `Máximo de ${columnTranslation}`,
+            'min_': `Mínimo de  ${columnTranslation}`
+          };
+          return prefixTranslations[prefix];
+        }
+      }
+    }
+    
+    // Tenta traduzir nome da tabela + coluna
+    const tableName = extractAndTranslateTableName(columnName);
+    if (tableName) {
+      const columnWithoutTable = columnName.replace(new RegExp(`^${extractTablePrefix(columnName)}_?`), '');
+      const columnTranslation = translations.columns[columnWithoutTable] || formatColumnNameFallback(columnWithoutTable);
+      return `${tableName} - ${columnTranslation}`;
+    }
+    
+    // Fallback: formatação básica
+    return formatColumnNameFallback(columnName);
+  };
+
+  // Determina a tabela de origem com tradução
+  const getFieldTable = (fieldName) => {
+    const tableName = extractAndTranslateTableName(fieldName);
+    return tableName || 'Consulta';
+  };
+
+  // Detecta colunas numéricas baseada nos dados reais
   const isNumericColumn = (columnName) => {
-    // Primeiro verifica se temos dados reais para analisar
+    // Verifica dados reais primeiro
     if (rows && rows.length > 0) {
       const sampleValue = rows[0][columnName];
       if (sampleValue !== undefined && sampleValue !== null) {
-        // Se o valor é numérico, é uma coluna numérica
         return !isNaN(parseFloat(sampleValue)) && isFinite(sampleValue);
       }
     }
@@ -208,20 +215,18 @@ const ModalChart = ({
       /category/i
     ];
 
-    // Se tem padrão numérico e NÃO tem padrão categórico
     const hasNumericPattern = numericPatterns.some(pattern => pattern.test(columnName));
     const hasCategoricalPattern = categoricalPatterns.some(pattern => pattern.test(columnName));
     
     return hasNumericPattern && !hasCategoricalPattern;
   };
 
-  // 🔥 CORREÇÃO: Função para detectar colunas categóricas baseada nos dados reais
+  // Detecta colunas categóricas baseada nos dados reais
   const isCategoricalColumn = (columnName) => {
-    // Primeiro verifica se temos dados reais para analisar
+    // Verifica dados reais primeiro
     if (rows && rows.length > 0) {
       const sampleValue = rows[0][columnName];
       if (sampleValue !== undefined && sampleValue !== null) {
-        // Se o valor NÃO é numérico, é uma coluna categórica
         return isNaN(parseFloat(sampleValue)) || !isFinite(sampleValue);
       }
     }
@@ -293,37 +298,26 @@ const ModalChart = ({
       /amount/i
     ];
 
-    // Se tem padrão categórico e NÃO tem padrão numérico
     const hasCategoricalPattern = categoricalPatterns.some(pattern => pattern.test(columnName));
     const hasNumericPattern = numericPatterns.some(pattern => pattern.test(columnName));
     
     return hasCategoricalPattern && !hasNumericPattern;
   };
 
-  // 🔥 CORREÇÃO: Detectar colunas baseado nos resultados reais da query
+  // Detecta colunas baseado nos resultados reais da query
   const detectedColumns = useMemo(() => {
     if (!columns || columns.length === 0) {
-      console.log('🔍 [DEBUG] Nenhuma coluna recebida');
       return [];
     }
-    
-    console.log('🔍 [DEBUG] Colunas recebidas:', columns);
-    console.log('🔍 [DEBUG] Dados reais (primeira linha):', rows && rows.length > 0 ? rows[0] : 'Nenhum dado');
     
     return columns.map(col => {
       const columnName = col.column || col.dataKey || col;
       const isNumeric = isNumericColumn(columnName);
       const isCategorical = isCategoricalColumn(columnName);
       
-      // Debug para verificar a detecção
-      if (rows && rows.length > 0) {
-        const sampleValue = rows[0][columnName];
-        console.log(`🔍 [DEBUG] Coluna ${columnName}: valor=${sampleValue}, numérico=${isNumeric}, categórico=${isCategorical}`);
-      }
-      
       return {
         dataKey: columnName,
-        name: formatColumnName(columnName), // 🔥 ATUALIZADO: Usa a nova função de formatação
+        name: formatColumnName(columnName),
         type: isNumeric ? 'number' : 'string',
         isNumeric,
         isCategorical
@@ -331,21 +325,17 @@ const ModalChart = ({
     });
   }, [columns, rows]);
 
-  // 🔥 CORREÇÃO: Extrair colunas numéricas
+  // Extrai colunas numéricas
   const numericColumns = useMemo(() => {
-    const numeric = detectedColumns.filter(col => col.isNumeric);
-    console.log('🔍 [DEBUG] Colunas numéricas detectadas:', numeric.map(n => n.dataKey));
-    return numeric;
+    return detectedColumns.filter(col => col.isNumeric);
   }, [detectedColumns]);
 
-  // 🔥 CORREÇÃO: Extrair colunas categóricas
+  // Extrai colunas categóricas
   const categoricalColumns = useMemo(() => {
-    const categorical = detectedColumns.filter(col => col.isCategorical);
-    console.log('🔍 [DEBUG] Colunas categóricas detectadas:', categorical.map(c => c.dataKey));
-    return categorical;
+    return detectedColumns.filter(col => col.isCategorical);
   }, [detectedColumns]);
 
-  // 🔥 CORREÇÃO: Mover filteredCategories para depois da definição de categoricalColumns
+  // Filtra categorias baseado no termo de busca
   const filteredCategories = useMemo(() => {
     return categoricalColumns.filter(col =>
       col.dataKey.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -353,7 +343,7 @@ const ModalChart = ({
     );
   }, [categoricalColumns, searchTerm]);
 
-  // Funções de toggle (mesma lógica do primeiro código)
+  // Alterna seleção de categoria
   const handleCategoryToggle = (category) => {
     setLocalSelectedCategories(prev => {
       if (prev.includes(category)) {
@@ -364,6 +354,7 @@ const ModalChart = ({
     });
   };
 
+  // Alterna seleção de coluna de valor
   const handleValueColumnToggle = (column) => {
     setLocalSelectedValueColumns(prev => {
       if (prev.includes(column)) {
@@ -374,39 +365,33 @@ const ModalChart = ({
     });
   };
 
-  // Funções de seleção/limpeza (mantidas do código original)
+  // Seleciona todas as categorias
   const handleSelectAllCategories = () => {
     setLocalSelectedCategories(categoricalColumns.map(col => col.dataKey));
   };
 
+  // Limpa todas as categorias
   const handleClearAllCategories = () => {
     setLocalSelectedCategories([]);
   };
 
+  // Seleciona todas as colunas de valor
   const handleSelectAllValueColumns = () => {
     setLocalSelectedValueColumns(numericColumns.map(col => col.dataKey));
   };
 
+  // Limpa todas as colunas de valor
   const handleClearAllValueColumns = () => {
     setLocalSelectedValueColumns([]);
   };
 
-  // 🔥 CORREÇÃO: Função para gerar dados do gráfico usando dados REAIS com LIMITES e ORDENAÇÃO
+  // Gera dados do gráfico usando dados reais com limites e ordenação
   const generateChartData = () => {
     if (localSelectedCategories.length === 0 || localSelectedValueColumns.length === 0 || !rows || rows.length === 0) {
-      console.log('🔍 [DEBUG] Dados insuficientes para gerar gráfico');
       return [];
     }
 
-    console.log('🔍 [DEBUG] Gerando dados do gráfico com:', {
-      categories: localSelectedCategories,
-      metrics: localSelectedValueColumns,
-      maxItems,
-      sortBy,
-      rowCount: rows.length
-    });
-
-    // Agrupamento de dados REAIS
+    // Agrupamento de dados reais
     const groupedData = rows.reduce((acc, item) => {
       const key = localSelectedCategories.map(attr => item[attr] || 'N/A').join(' - ');
       
@@ -428,31 +413,23 @@ const ModalChart = ({
     // Converter para array e aplicar ordenação
     let result = Object.values(groupedData);
     
-    console.log('🔍 [DEBUG] Dados agrupados (antes da ordenação):', result.length, 'grupos');
-
-    // 🔥 CORREÇÃO: Aplicar ordenação baseada na configuração
+    // Aplicar ordenação baseada na configuração
     if (sortBy === 'value') {
-      // Ordenar por valor (soma da primeira métrica selecionada)
       const primaryMetric = localSelectedValueColumns[0];
       result.sort((a, b) => (b[primaryMetric] || 0) - (a[primaryMetric] || 0));
-      console.log('🔍 [DEBUG] Ordenado por valor (maior para menor) usando métrica:', primaryMetric);
     } else if (sortBy === 'alphabetical') {
-      // Ordenar alfabeticamente pelo label
       result.sort((a, b) => a.label.localeCompare(b.label));
-      console.log('🔍 [DEBUG] Ordenado alfabeticamente');
     }
 
-    // 🔥 CORREÇÃO: Aplicar limite de itens
+    // Aplicar limite de itens
     if (maxItems > 0 && result.length > maxItems) {
-      console.log('🔍 [DEBUG] Aplicando limite de', maxItems, 'itens. Total antes:', result.length);
       result = result.slice(0, maxItems);
-      console.log('🔍 [DEBUG] Total depois do limite:', result.length);
     }
 
-    console.log('🔍 [DEBUG] Dados finais do gráfico:', result.length, 'itens');
     return result;
   };
 
+  // Aplica configurações do gráfico
   const handleApply = () => {
     onCategoriesChange(localSelectedCategories);
     onValueColumnsChange(localSelectedValueColumns);
@@ -465,6 +442,7 @@ const ModalChart = ({
     });
   };
 
+  // Cancela e fecha modal
   const handleCancel = () => {
     onClose();
   };
@@ -479,17 +457,6 @@ const ModalChart = ({
           <button className="close-btn" onClick={onClose}>
             <FaTimes size={20} />
           </button>
-        </div>
-
-        {/* Debug Info */}
-        <div className="debug-info" style={{padding: '10px', background: '#f5f5f5', fontSize: '12px', color: '#666'}}>
-          <strong>Debug:</strong> {detectedColumns.length} colunas detectadas | 
-          {categoricalColumns.length} categóricas | 
-          {numericColumns.length} numéricas |
-          {rows ? rows.length : 0} linhas de dados |
-          Máx: {maxItems} itens |
-          Ordenar: {sortBy === 'value' ? 'valor' : 'A-Z'} |
-          Métricas selecionadas: {localSelectedValueColumns.length}
         </div>
 
         {/* Tabs de Navegação */}
@@ -573,7 +540,6 @@ const ModalChart = ({
                 {filteredCategories.length === 0 && (
                   <div className="no-results">
                     <p>Nenhum campo categórico encontrado</p>
-                    <small>Colunas detectadas: {detectedColumns.map(c => c.dataKey).join(', ')}</small>
                   </div>
                 )}
               </div>
@@ -586,7 +552,6 @@ const ModalChart = ({
                 <div className="grouping-preview">
                   <h4>Prévia do Agrupamento:</h4>
                   <p>Os dados serão agrupados por: {localSelectedCategories.map(formatColumnName).join(' → ')}</p>
-                  <small>Baseado em {rows ? rows.length : 0} registros de dados reais</small>
                 </div>
               )}
             </div>
@@ -635,7 +600,6 @@ const ModalChart = ({
                 {numericColumns.length === 0 && (
                   <div className="no-metrics">
                     <p>Nenhuma métrica numérica encontrada</p>
-                    <small>Colunas detectadas: {detectedColumns.map(c => c.dataKey).join(', ')}</small>
                   </div>
                 )}
               </div>
@@ -721,9 +685,6 @@ const ModalChart = ({
                 <p>O gráfico mostrará os <strong>{maxItems} primeiros itens</strong> ordenados por <strong>
                   {sortBy === 'value' ? 'valor (maiores valores primeiro)' : 'ordem alfabética'}
                 </strong>.</p>
-                <p className="preview-note">
-                  <strong>Nota:</strong> A ordenação por valor usa a primeira métrica selecionada ({localSelectedValueColumns.length > 0 ? formatColumnName(localSelectedValueColumns[0]) : 'Nenhuma métrica'}).
-                </p>
               </div>
             </div>
           )}

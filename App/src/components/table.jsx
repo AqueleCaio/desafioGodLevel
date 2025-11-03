@@ -7,17 +7,38 @@ function Table() {
   const { result } = useQuery();
   const { rows = [], columns = [] } = result || {};
 
-  // 🔥 FUNÇÃO ATUALIZADA PARA TRADUZIR NOMES DE COLUNAS
+  // Extrai prefixo da tabela do nome da coluna
+  const extractTablePrefix = (columnName) => {
+    const parts = columnName.split('_');
+    for (let i = 0; i < parts.length; i++) {
+      const potentialTableName = parts.slice(0, i + 1).join('_');
+      if (translations.tables[potentialTableName]) {
+        return potentialTableName;
+      }
+    }
+    return '';
+  };
+
+  // Formata nome da coluna para exibição
+  const formatColumnName = (columnName) => {
+    const words = columnName.split('_');
+    const capitalizedWords = words.map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    );
+    return capitalizedWords.join(' ');
+  };
+
+  // Traduz nomes de colunas considerando agregações e prefixos
   const translateColumnName = (columnName) => {
     if (!columnName) return '';
     
-    // 1️⃣ PRIMEIRO: Busca tradução exata no dicionário
+    // Busca tradução exata no dicionário
     const exactTranslation = translations.columns[columnName];
     if (exactTranslation) {
       return exactTranslation;
     }
     
-    // 2️⃣ SEGUNDO: Para colunas com prefixos de agregação
+    // Processa colunas com prefixos de agregação
     const aggregationPrefixes = ['sum_', 'avg_', 'count_', 'max_', 'min_'];
     for (const prefix of aggregationPrefixes) {
       if (columnName.startsWith(prefix)) {
@@ -35,7 +56,7 @@ function Table() {
           return prefixTranslations[prefix];
         }
         
-        // 🔥 NOVO: Se não encontrou tradução para a coluna base, tenta traduzir a tabela
+        // Se não encontrou tradução para coluna base, tenta traduzir tabela
         const tableName = extractAndTranslateTableName(baseColumn);
         if (tableName) {
           const columnWithoutTable = baseColumn.replace(new RegExp(`^${extractTablePrefix(baseColumn)}_?`), '');
@@ -53,7 +74,7 @@ function Table() {
       }
     }
     
-    // 3️⃣ TERCEIRO: Tenta traduzir nome da tabela + coluna
+    // Tenta traduzir nome da tabela + coluna
     const tableName = extractAndTranslateTableName(columnName);
     if (tableName) {
       const columnWithoutTable = columnName.replace(new RegExp(`^${extractTablePrefix(columnName)}_?`), '');
@@ -61,32 +82,11 @@ function Table() {
       return `${tableName} - ${columnTranslation}`;
     }
     
-    // 4️⃣ QUARTO: Fallback - Formatação básica
+    // Fallback: formatação básica
     return formatColumnName(columnName);
   };
 
-  // 🔥 FUNÇÃO AUXILIAR: Extrai prefixo da tabela
-  const extractTablePrefix = (columnName) => {
-    const parts = columnName.split('_');
-    for (let i = 0; i < parts.length; i++) {
-      const potentialTableName = parts.slice(0, i + 1).join('_');
-      if (translations.tableNames[potentialTableName]) {
-        return potentialTableName;
-      }
-    }
-    return '';
-  };
-
-  // 🔥 FUNÇÃO AUXILIAR: Formata nome da coluna
-  const formatColumnName = (columnName) => {
-    const words = columnName.split('_');
-    const capitalizedWords = words.map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    );
-    return capitalizedWords.join(' ');
-  };
-
-  // 🔥 COLUNAS COM LABELS TRADUZIDOS
+  // Colunas com labels traduzidos
   const translatedColumns = useMemo(() => {
     return columns.map(col => ({
       ...col,
@@ -94,7 +94,7 @@ function Table() {
     }));
   }, [columns]);
 
-  // 🧩 Pré-tratamento dos dados (mantido igual)
+  // Processa dados para exibição
   const processedRows = useMemo(() => {
     if (!Array.isArray(rows) || rows.length === 0) return [];
 
@@ -127,7 +127,7 @@ function Table() {
     });
   }, [rows, columns]);
 
-  // Define altura máxima se houver mais de 15 linhas
+  // Define altura máxima da tabela
   const maxRowsVisible = 15;
   const rowHeight = 40;
   const tableHeight = rows.length > maxRowsVisible ? maxRowsVisible * rowHeight : 'auto';
@@ -140,8 +140,6 @@ function Table() {
       </div>
     );
   }
-
-  console.log('Colunas traduzidas:', translatedColumns);
 
   return (
     <div className="tabela">

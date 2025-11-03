@@ -1,10 +1,8 @@
 // DAO/BDmain.js
-const { PrismaClient, Prisma } = require('@prisma/client');
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-/**
- * Retorna todas as tabelas públicas do banco
- */
+// Retorna todas as tabelas públicas do banco
 async function getTableNames() {
   return await prisma.$queryRaw`
     SELECT table_name
@@ -14,9 +12,7 @@ async function getTableNames() {
   `;
 }
 
-/**
- * Retorna os atributos (colunas) de uma tabela
- */
+// Retorna os atributos (colunas) de uma tabela
 async function getTableAttributes(tableName) {
   return await prisma.$queryRaw`
     SELECT column_name 
@@ -25,6 +21,7 @@ async function getTableAttributes(tableName) {
   `;
 }
 
+// Retorna todas as relações entre tabelas via chaves estrangeiras
 async function getAllRelatedTables() {
   return await prisma.$queryRaw`
     SELECT DISTINCT
@@ -44,6 +41,7 @@ async function getAllRelatedTables() {
   `;
 }
 
+// Constrói e executa query SQL baseada nas partes fornecidas
 async function builderQuery({
   selectPart,
   fromPart,
@@ -52,7 +50,7 @@ async function builderQuery({
   havingPart = '',
   orderByPart = ''
 }) {
-  // Assegura que os argumentos são strings (evita undefined)
+  // Garante que todas as partes sejam strings válidas
   selectPart = selectPart || '*';
   fromPart = fromPart || '';
   wherePart = wherePart || '';
@@ -60,7 +58,7 @@ async function builderQuery({
   havingPart = havingPart || '';
   orderByPart = orderByPart || '';
 
-  // Monta a query base
+  // Monta a query base com as partes fornecidas
   const queryParts = [
     `SELECT ${selectPart}`,
     `FROM ${fromPart}`,
@@ -72,7 +70,7 @@ async function builderQuery({
 
   let fullQuery = queryParts.join('\n').trim();
 
-  // 🧠 Aplica LIMIT padrão se o usuário não definir
+  // Adiciona LIMIT padrão se não foi definido pelo usuário
   const hasLimit = /\blimit\b/i.test(fullQuery);
   if (!hasLimit) {
     fullQuery += `\nLIMIT 5000`;
@@ -80,22 +78,21 @@ async function builderQuery({
 
   fullQuery += ';';
 
-  console.log('🧩 Query final montada no DAO:\n', fullQuery);
+  console.log('Query final montada no DAO:\n', fullQuery);
   console.log('\n----------------------------------\n');
 
   try {
+    // Faz a consulta e manda para a variável result
     const result = await prisma.$queryRawUnsafe(fullQuery);
 
-    console.log('✅ Query executada com sucesso. Resultados (até 10 linhas):', result.slice(0, 10));
+    console.log('Query executada com sucesso. Resultados (até 10 linhas):', result.slice(0, 10));
 
     return { result, fullQuery };
   } catch (err) {
-    console.error('❌ Erro ao executar query no builderQuery:', err);
+    console.error('Erro ao executar query no builderQuery:', err);
     throw err;
   }
 }
-
-
 
 module.exports = {
   getTableNames,

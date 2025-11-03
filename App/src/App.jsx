@@ -11,9 +11,6 @@ function App() {
   return (
     <QueryProvider>
       <div className="app-container">
-        <h1 className="app-title">Sistema de Relatórios Ad Hoc</h1>
-        <p className="app-subtitle">Gere relatórios personalizados com dados de pistas</p>
-        
         <div className="app-content">
           <FilterMain />
           <div className="app-right-panel">

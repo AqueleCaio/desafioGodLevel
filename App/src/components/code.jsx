@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import '../styles/Code.css';
 import { useQuery } from '../context/queryContext';
 
-
 function SQLViewer() {
   const { query } = useQuery();
   const [copied, setCopied] = useState(false);
 
-  // Função simples para highlight de SQL
+  // Aplica syntax highlighting para SQL
   const highlightSQL = (sql) => {
     if (!sql) return sql;
     
@@ -20,6 +19,7 @@ function SQLViewer() {
 
     let highlighted = sql;
 
+    // Destacar palavras-chave
     keywords.forEach(keyword => {
       const regex = new RegExp(`\\b${keyword}\\b`, 'gi');
       highlighted = highlighted.replace(regex, `<span class="keyword">${keyword}</span>`);
@@ -39,17 +39,14 @@ function SQLViewer() {
 
   const displayQuery = query || '-- Aguardando geração do relatório...\n-- Configure os filtros acima e clique em "Gerar Relatório"';
 
+  // Copia query para área de transferência
   const handleCopy = () => {
     if (query) {
       navigator.clipboard.writeText(query);
       setCopied(true);
-
-      // Volta para o ícone de copy após 2 segundos
       setTimeout(() => setCopied(false), 2000);
     }
   };
-
-
 
   return (
     <div className="code-container">
@@ -85,6 +82,6 @@ function SQLViewer() {
       </div>
     </div>
   );
-};
+}
 
 export default SQLViewer;

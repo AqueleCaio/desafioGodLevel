@@ -1,84 +1,169 @@
 import React from 'react';
+import { 
+  extractTableFromColumn, 
+  translateColumnName,
+  translateTableName 
+} from '../../services/frontController';
 
-function OrderBy({ columns, orderBy, setOrderBy }) {
+function OrderBy({ columns = [], orderBy = [], setOrderBy }) {
+  // Agrupa colunas por tabela
+  const groupedColumns = React.useMemo(() => {
+    const groups = {};
+    
+    if (!Array.isArray(columns)) return groups;
+    
+    columns.forEach(column => {
+      if (!column || !column.id) return;
+      
+      const tableName = extractTableFromColumn(column.id);
+      
+      if (!groups[tableName]) {
+        groups[tableName] = [];
+      }
+      
+      groups[tableName].push({
+        id: column.id,
+        name: translateColumnName(column.id),
+        originalName: column.id
+      });
+    });
+    
+    return groups;
+  }, [columns]);
 
-  // Atualiza uma cláusula específica
-  const handleColumnChange = (index, value) => {
-    const updated = [...orderBy];
-    if (value === '') {
-      // 🔥 CORREÇÃO: Se selecionar vazio, remove a coluna mas mantém o objeto
-      updated[index] = { column: null, direction: updated[index].direction || 'ASC' };
-    } else {
-      updated[index].column = value;
+  // Reseta automaticamente quando colunas mudam
+  React.useEffect(() => {
+    if (!Array.isArray(orderBy) || !Array.isArray(columns)) return;
+    
+    // Verifica se precisa resetar
+    const shouldReset = columns.length === 0 && 
+                      orderBy.length > 0 && 
+                      !(orderBy.length === 1 && !orderBy[0]?.column);
+    
+    if (shouldReset) {
+      setOrderBy([{ column: '', direction: 'ASC' }]);
+      return;
     }
-    setOrderBy(updated);
-  };
+    
+    // Remove ordenações que referenciam colunas não disponíveis
+    if (columns.length > 0) {
+      const validOrderBy = orderBy.filter(order => {
+        if (!order || !order.column) return true;
+        return columns.some(col => col && col.id === order.column);
+      });
+      
+      // Só atualiza se realmente houver mudanças
+      if (validOrderBy.length !== orderBy.length) {
+        setOrderBy(validOrderBy.length > 0 ? validOrderBy : [{ column: '', direction: 'ASC' }]);
+      }
+    }
+  }, [columns]);
 
-  const handleDirectionChange = (index, value) => {
+  // Atualiza um campo específico de ordenação
+  const updateOrderBy = (index, key, value) => {
+    if (!Array.isArray(orderBy)) return;
+    
     const updated = [...orderBy];
-    updated[index].direction = value;
-    setOrderBy(updated);
+    if (updated[index]) {
+      updated[index][key] = value;
+      setOrderBy(updated);
+    }
   };
 
-  // Adiciona uma nova cláusula de ORDER BY
-  const addOrderClause = () => {
-    setOrderBy([...orderBy, { column: null, direction: 'ASC' }]);
+  // Adiciona nova ordenação
+  const addOrderBy = () => {
+    const currentOrderBy = Array.isArray(orderBy) ? orderBy : [];
+    setOrderBy([
+      ...currentOrderBy,
+      { column: '', direction: 'ASC' }
+    ]);
   };
 
-  // Remove cláusula
-  const removeOrderClause = (index) => {
-    const updated = orderBy.filter((_, i) => i !== index);
-    setOrderBy(updated);
-  };
-
-  // 🔥 CORREÇÃO: Limpar completamente quando não há cláusulas válidas
-  const clearAllOrderBy = () => {
-    setOrderBy([]);
+  // Remove ordenação
+  const removeOrderBy = (index) => {
+    if (!Array.isArray(orderBy) || orderBy.length <= 1) return;
+    
+    const newOrderBy = orderBy.filter((_, i) => i !== index);
+    setOrderBy(newOrderBy);
   };
 
   return (
     <div className="section">
       <h3 className="section-title">Ordenação</h3>
 
-      {orderBy.map((ob, index) => (
+      {Array.isArray(orderBy) && orderBy.map((order, index) => (
         <div key={index} className="filter-column">
+          {/* Coluna para ordenação */}
           <select
             className="filter-select"
-            value={ob.column || ''}
-            onChange={e => handleColumnChange(index, e.target.value)}
+            value={order?.column || ''}
+            onChange={e => updateOrderBy(index, 'column', e.target.value)}
           >
-            <option value="">Selecione uma coluna</option>
-            {columns.map((opt, i) => (
-              <option key={opt.id || opt.column || i} value={opt.id || opt.column}>
-                {opt.label}
-              </option>
-            ))}
+            <option value="">Selecionar Coluna</option>
+            {Object.keys(groupedColumns).length > 0 && 
+              Object.entries(groupedColumns).map(([tableName, tableColumns]) => (
+                <optgroup key={tableName} label={translateTableName(tableName)}>
+                  {tableColumns.map(column => (
+                    <option key={column.id} value={column.id}>
+                      {column.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))
+            }
           </select>
 
+          {/* Direção da ordenação */}
           <select
-            className="filter-select"
-            value={ob.direction || 'ASC'}
-            onChange={e => handleDirectionChange(index, e.target.value)}
+            className="filter-select-operator"
+            value={order?.direction || 'ASC'}
+            onChange={e => updateOrderBy(index, 'direction', e.target.value)}
           >
             <option value="ASC">ASC</option>
             <option value="DESC">DESC</option>
           </select>
 
-          <button className="filter-remove" onClick={() => removeOrderClause(index)}>X</button>
+          {/* Botão remover */}
+          {Array.isArray(orderBy) && orderBy.length > 1 && (
+            <button
+              className="filter-remove"
+              onClick={() => removeOrderBy(index)}
+            >
+              X
+            </button>
+          )}
         </div>
       ))}
 
-      <div className="filter-actions">
-        <button className="filter-add" onClick={addOrderClause}>
-          Adicionar Ordenação
-        </button>
-        
-      </div>
+      {/* Botão adicionar ordenação */}
+      <button className="filter-add" onClick={addOrderBy}>
+        Adicionar Ordenação
+      </button>
 
-      {/* 🔥 DEBUG: Mostrar estado atual */}
-      <div style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
-        <strong>Debug orderBy:</strong> {JSON.stringify(orderBy)}
-      </div>
+      {Object.keys(groupedColumns).length === 0 && (
+        <div className="no-columns-message">
+          <p>Nenhuma coluna disponível para ordenação</p>
+        </div>
+      )}
+
+      {/* Informações sobre a ordenação atual */}
+      {Array.isArray(orderBy) && orderBy.some(order => order?.column) && (
+        <div className="grouping-preview" style={{ marginTop: '15px' }}>
+          <h4>Ordem Definida:</h4>
+          <p>
+            {orderBy
+              .filter(order => order?.column)
+              .map((order, index) => (
+                <span key={index}>
+                  {index > 0 && ' → '}
+                  <strong>{translateColumnName(order.column)}</strong> 
+                  {' '}({order.direction === 'ASC' ? 'Crescente' : 'Decrescente'})
+                </span>
+              ))
+            }
+          </p>
+        </div>
+      )}
     </div>
   );
 }
