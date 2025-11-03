@@ -1,26 +1,42 @@
 import { translations } from '../../services/frontController';
 
-function Tables({ selectedTable, setSelectedTable, selectedTables, setSelectedTables, availableTables, removeTable, updateAvailableTables }) {
-  // garante que só tenha valores únicos
+function Tables({ 
+  selectedTable, 
+  setSelectedTable, 
+  selectedTables, 
+  setSelectedTables, 
+  availableTables, 
+  removeTable, 
+  updateAvailableTables,
+  hasError
+}) {
+  // Garante que só tenha valores únicos
   const uniqueTables = [...new Set(
     availableTables.map(t => (typeof t === 'string' ? t : t.name))
   )];
 
-  // Função para pegar tradução da tabela
+  // Traduz nome da tabela
   const translateTable = (tableName) => {
-    return translations.tables[tableName] || tableName; // retorna tradução ou o próprio nome se não houver
+    return translations.tables[tableName] || tableName;
   };
 
   return (
-    <div className="section">
+    <div className={`section ${hasError ? 'section-error' : ''}`}>
       <h3 className="section-title">
         <span>📋</span>
         Tabelas Disponíveis
+        {hasError && <span className="error-marker">*</span>}
       </h3>
+      
+      {hasError && (
+        <div className="error-message">
+          Selecione pelo menos uma tabela para gerar o relatório
+        </div>
+      )}
       
       <div className="dropbox_tables">
         <select
-          className="filter-select"
+          className={`filter-select ${hasError ? 'input-error' : ''}`}
           value={selectedTable || ''}
           onChange={(e) => setSelectedTable(e.target.value)}
           disabled={uniqueTables.length === 0}

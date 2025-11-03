@@ -3,7 +3,7 @@ const API_BASE_URL = 'http://localhost:5000';
 let cachedTableNames = null;
 let cachedRelations = null;
 
-// 🔹 Dicionário de traduções
+// Dicionário de traduções
 export const translations = {
   tables: {
     channels: "Canais",
@@ -21,56 +21,14 @@ export const translations = {
     payments: "Pagamentos",
     brands: "Marcas",
     sub_brands: "Submarcas",
-    item_item_product_sales: "Itens de Itens de Vendas",
+    item_item_product_sales: "Itens de Vendas Detalhados",
     payment_types: "Tipos de Pagamento",
     coupons: "Cupons",
     coupon_sales: "Cupons de Venda"
   },
 
-  // 🔥 TRADUÇÕES ESPECÍFICAS PARA OS PADRÕES ENCONTRADOS
   columns: {
-    // Tabelas + colunas
-    items_name: 'Nome do Item',
-    brands_name: 'Nome da Marca',
-    products_name: 'Nome do Produto',
-    categories_name: 'Nome da Categoria',
-    stores_name: 'Nome da Loja',
-    customers_name: 'Nome do Cliente',
-    channels_name: 'Nome do Canal',
-    payment_types_name: 'Nome do Tipo de Pagamento',
-    coupons_name: 'Nome do Cupom',
-    
-    // Colunas com prefixos de tabela
-    items_id: 'ID do Item',
-    brands_id: 'ID da Marca',
-    products_id: 'ID do Produto',
-    categories_id: 'ID da Categoria',
-    stores_id: 'ID da Loja',
-    customers_id: 'ID do Cliente',
-    sales_id: 'ID da Venda',
-    payment_types_id: 'ID do Tipo de Pagamento',
-    
-    // Colunas de vendas e produtos
-    item_product_sales_price: 'Preço do Item',
-    item_product_sales_quantity: 'Quantidade do Item',
-    product_sales_total_price: 'Preço Total da Venda',
-    sales_value_paid: 'Valor Pago',
-    sales_customer_name: 'Nome do Cliente',
-    sales_total_discount: 'Desconto Total',
-    sales_total_increase: 'Acréscimo Total',
-    sales_delivery_fee: 'Taxa de Entrega',
-    sales_service_tax_fee: 'Taxa de Serviço',
-    
-    // Colunas de agregação
-    sum_item_product_sales_price: 'Soma do Preço dos Itens',
-    sum_product_sales_total_price: 'Soma do Preço Total',
-    sum_sales_value_paid: 'Soma do Valor Pago',
-    avg_item_product_sales_price: 'Média do Preço dos Itens',
-    avg_product_sales_total_price: 'Média do Preço Total',
-    count_items_name: 'Contagem de Itens',
-    count_customers_name: 'Contagem de Clientes',
-    
-    // Fallback: remove prefixos e usa traduções básicas
+    // Atributos básicos
     name: 'Nome',
     id: 'ID',
     price: 'Preço',
@@ -140,57 +98,138 @@ export const translations = {
     agree_terms: 'Aceitou os Termos',
     receive_promotions_email: 'Recebe Promoções por Email',
     receive_promotions_sms: 'Recebe Promoções por SMS',
-  },
-
-  // 🔥 NOVO: Traduções para nomes de tabelas que aparecem em colunas
-  tableNames: {
-    items: 'Itens',
-    brands: 'Marcas',
-    products: 'Produtos',
-    categories: 'Categorias',
-    stores: 'Lojas',
-    customers: 'Clientes',
-    sales: 'Vendas',
-    payment_types: 'Tipos de Pagamento',
-    coupons: 'Cupons',
-    channels: 'Canais',
-    option_groups: 'Grupos de Opções',
-    product_sales: 'Vendas de Produtos',
-    delivery_addresses: 'Endereços de Entrega',
-    item_product_sales: 'Itens de Vendas',
-    delivery_sales: 'Vendas de Entrega',
-    payments: 'Pagamentos',
-    sub_brands: 'Submarcas',
-    item_item_product_sales: 'Itens de Vendas Detalhados',
-    coupon_sales: 'Cupons de Venda'
+    
+    // Novas traduções identificadas nos outputs
+    description: 'Descrição',
+    type: 'Tipo',
+    pos_uuid: 'UUID do POS',
+    deleted_at: 'Data de Exclusão',
+    customer_id: 'ID do Cliente',
+    channel_id: 'ID do Canal',
+    total_amount_items: 'Valor Total dos Itens',
+    latitude: 'Latitude',
+    longitude: 'Longitude',
+    district: 'Distrito',
+    address_street: 'Rua do Endereço',
+    address_number: 'Número do Endereço',
+    zipcode: 'CEP',
+    is_own: 'É Dono(a)',
+    is_holding: 'Aguardando',
+    creation_date: 'Data de Criação',
+    product_id: 'ID do Produto',
+    product_sale_id: 'ID da Venda de Produto',
+    additional_price: 'Preço Adicional',
+    amount: 'Valor',
+    courier_fee: 'Taxa do Entregador',
+    timing: 'Tempo',
+    mode: 'Modo',
+    code: 'Código',
+    target: 'Alvo',
+    sponsorship: 'Patrocínio',
+    
+    // Atributos de agregação
+    sum: 'Soma',
+    avg: 'Média',
+    count: 'Contagem',
+    min: 'Mínimo',
+    max: 'Máximo'
   }
 };
 
-// 🔹 Função auxiliar para traduzir com fallback
-export function translate(category, key) {
-  return translations[category]?.[key] || key;
-}
+// Extrai nome da tabela de uma coluna
+export const extractTableFromColumn = (columnId) => {
+  if (!columnId) return '';
+  
+  const parts = columnId.split('.');
+  if (parts.length === 2) {
+    return parts[0];
+  }
+  
+  const match = columnId.match(/(sum|avg|count|min|max)\((\w+)\.\w+\)/);
+  if (match && match[2]) {
+    return match[2];
+  }
+  
+  return columnId;
+};
 
-// 🔹 NOVA FUNÇÃO: Extrai e traduz nomes de tabelas de colunas (ModalChart)
+// Extrai apenas o nome da coluna (sem tabela)
+export const extractColumnNameOnly = (columnId) => {
+  if (!columnId) return '';
+  
+  const parts = columnId.split('.');
+  if (parts.length === 2) {
+    return parts[1];
+  }
+  
+  const match = columnId.match(/(sum|avg|count|min|max)\((\w+)\.(\w+)\)/);
+  if (match && match[3]) {
+    return match[3];
+  }
+  
+  return columnId;
+};
+
+// Traduz nomes de colunas
+export const translateColumnName = (columnId) => {
+  if (!columnId) return '';
+  
+  if (translations.columns[columnId]) {
+    return translations.columns[columnId];
+  }
+  
+  const parts = columnId.split('.');
+  if (parts.length === 2) {
+    const [table, column] = parts;
+    if (translations.columns[column]) {
+      return translations.columns[column];
+    }
+  }
+  
+  const aggMatch = columnId.match(/(sum|avg|count|min|max)\((\w+)\.(\w+)\)/);
+  if (aggMatch) {
+    const [_, aggFunc, table, column] = aggMatch;
+    
+    if (translations.columns[column]) {
+      const aggTranslations = {
+        'sum': 'Soma',
+        'avg': 'Média', 
+        'count': 'Contagem',
+        'min': 'Mínimo',
+        'max': 'Máximo'
+      };
+      return `${aggTranslations[aggFunc]} ${translations.columns[column]}`;
+    }
+  }
+  
+  return columnId.split('_').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
+};
+
+// Traduz nomes de tabelas
+export const translateTableName = (tableName) => {
+  if (!tableName) return '';
+  return translations.tables[tableName] || tableName;
+};
+
+// Extrai e traduz nomes de tabelas de colunas
 export function extractAndTranslateTableName(columnName) {
   if (!columnName) return '';
   
-  // Padrões comuns: tabela_coluna ou prefixo_tabela_coluna
   const parts = columnName.split('_');
   
-  // Tenta encontrar o nome da tabela nos primeiros segmentos
   for (let i = 0; i < parts.length; i++) {
     const potentialTableName = parts.slice(0, i + 1).join('_');
     
-    if (translations.tableNames[potentialTableName]) {
-      return translations.tableNames[potentialTableName];
+    if (translations.tables[potentialTableName]) {
+      return translations.tables[potentialTableName];
     }
     
-    // Verifica também no plural/singular
     if (potentialTableName.endsWith('s')) {
       const singular = potentialTableName.slice(0, -1);
-      if (translations.tableNames[singular]) {
-        return translations.tableNames[singular];
+      if (translations.tables[singular]) {
+        return translations.tables[singular];
       }
     }
   }
@@ -198,7 +237,7 @@ export function extractAndTranslateTableName(columnName) {
   return '';
 }
 
-// Função para buscar os nomes das tabelas do banco de dados
+// Busca nomes das tabelas do banco de dados
 export async function getTableNames() {
   if (cachedTableNames) return cachedTableNames;
 
@@ -212,8 +251,7 @@ export async function getTableNames() {
   }
 }
 
-
-// Função para buscar todas as relações entre tabelas
+// Busca todas as relações entre tabelas
 export async function getAllRelatedTables() {
   if (cachedRelations) return cachedRelations;
 
@@ -221,7 +259,6 @@ export async function getAllRelatedTables() {
     const res = await fetch(`${API_BASE_URL}/all-related-tables`);
     const data = await res.json();
 
-    // monta um grafo de relações: { tabela: [relacionadas] }
     cachedRelations = {};
     data.forEach(rel => {
       if (!cachedRelations[rel.table_name]) cachedRelations[rel.table_name] = [];
@@ -238,8 +275,7 @@ export async function getAllRelatedTables() {
   }
 }
 
-
-// Função para buscar os atributos (colunas) de uma tabela específica
+// Busca atributos (colunas) de uma tabela específica
 export async function getTableAttributes(tableName) {
   try {
     const res = await fetch(`${API_BASE_URL}/attributes/${tableName}`);
@@ -250,16 +286,14 @@ export async function getTableAttributes(tableName) {
   }
 }
 
-// Função pai para distribuir o payload
+// Processa geração de relatório distribuindo o payload
 export async function handleReportGeneration(payload) {
   try {
-    // Executa ambas as funções em paralelo
     const [reportResult, queryResult] = await Promise.all([
       postDataReport(payload),
       postQueryToView(payload)
     ]);
 
-    // retorna ambos os resultados
     return {
       report: reportResult,
       query: queryResult
@@ -275,7 +309,7 @@ export async function handleReportGeneration(payload) {
   }
 }
 
-// Suas funções originais (mantenha como estão)
+// Envia dados para geração de relatório
 export async function postDataReport(payload) {
   try {
     const res = await fetch(`${API_BASE_URL}/query-report`, {
@@ -292,7 +326,7 @@ export async function postDataReport(payload) {
   }
 }
 
-// Função que envia os dados e recebe a query SQL
+// Envia dados e recebe query SQL para visualização
 export async function postQueryToView(payload) {
   try {
     const res = await fetch(`${API_BASE_URL}/query-to-view`, {
@@ -302,7 +336,6 @@ export async function postQueryToView(payload) {
     });
 
     const { fullQuery } = await res.json();
-
     return fullQuery;
   } catch (err) {
     console.error('Erro ao buscar consulta para visualização:', err);

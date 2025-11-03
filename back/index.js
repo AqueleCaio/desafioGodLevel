@@ -6,16 +6,12 @@ const {
   getAllRelatedTables,
   builderQuery
 } = require('./DAO/BDmain');
+const { helperDataReport } = require('./backController');
 
-const {
-  helperDataReport
-} = require('./backController');
-
+// Configura BigInt para serialização JSON
 BigInt.prototype.toJSON = function() {
   return this.toString();
 };
-
-// const { default: Agregation } = require('../App/src/components/filter/agreggation');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +19,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Retorna lista de tabelas
 app.get('/tables', async (req, res) => {
   try {
     const tabelas = await getTableNames();
@@ -33,6 +30,7 @@ app.get('/tables', async (req, res) => {
   }
 });
 
+// Retorna atributos de uma tabela específica
 app.get('/attributes/:tableName', async (req, res) => {
   const { tableName } = req.params;
   try {
@@ -44,6 +42,7 @@ app.get('/attributes/:tableName', async (req, res) => {
   }
 });
 
+// Retorna todas as relações entre tabelas
 app.get('/all-related-tables', async (req, res) => {
   try {
     const related = await getAllRelatedTables();
@@ -54,14 +53,12 @@ app.get('/all-related-tables', async (req, res) => {
   }
 });
 
-//
-// 1️⃣ ROTA PARA EXECUTAR A CONSULTA E RETORNAR APENAS O RESULTADO
-//
+// Executa consulta e retorna resultado
 app.post('/query-report', async (req, res) => {
   try {
     const payload = req.body;
 
-    // 1) Monta as partes da query com o helper
+    // Monta as partes da query
     const {
       selectPart,
       fromPart,
@@ -71,7 +68,7 @@ app.post('/query-report', async (req, res) => {
       orderByPart
     } = helperDataReport(payload);
 
-    // 2) Executa a query completa com o builderQuery
+    // Executa a query completa
     const { result } = await builderQuery({
       selectPart,
       fromPart,
@@ -81,11 +78,10 @@ app.post('/query-report', async (req, res) => {
       orderByPart,
     });
 
-    // 3) Retorna somente o resultado
     res.json({ result });
 
   } catch (err) {
-    console.error('❌ Erro ao processar /query-report:', err);
+    console.error('Erro ao processar /query-report:', err);
     res.status(500).json({
       error: 'Erro ao gerar relatório',
       details: err.message,
@@ -93,18 +89,12 @@ app.post('/query-report', async (req, res) => {
   }
 });
 
-
-//
-// 2️⃣ ROTA PARA RETORNAR APENAS A QUERY GERADA (sem executar)
-//
+// Retorna apenas a query gerada (sem executar)
 app.post('/query-to-view', async (req, res) => {
   try {
     const payload = req.body;
 
-
-    console.log('Como o payload chegou: ', payload)
-
-    // 1) Usa o mesmo helper para montar a query
+    // Monta as partes da query
     const {
       selectPart,
       fromPart,
@@ -114,7 +104,7 @@ app.post('/query-to-view', async (req, res) => {
       orderByPart
     } = helperDataReport(payload);
 
-    // 2) Gera a query final (igual ao builderQuery, mas sem executar)
+    // Constrói a query final
     const queryParts = [
       `SELECT ${selectPart}`,
       `FROM ${fromPart}`,
@@ -122,17 +112,14 @@ app.post('/query-to-view', async (req, res) => {
       groupByPart && `GROUP BY ${groupByPart}`,
       havingPart && `HAVING ${havingPart}`,
       orderByPart && `ORDER BY ${orderByPart}`
-    ].filter(Boolean); // remove partes vazias
+    ].filter(Boolean);
 
-    // 🔹 Junta tudo com quebras de linha limpas
     const fullQuery = queryParts.join('\n') + ';';
 
-    // 3) Retorna apenas a query formatada
     res.json({ fullQuery });
 
-
   } catch (err) {
-    console.error('❌ Erro ao montar query para visualização:', err);
+    console.error('Erro ao montar query para visualização:', err);
     res.status(500).json({
       error: 'Erro ao montar query',
       details: err.message,

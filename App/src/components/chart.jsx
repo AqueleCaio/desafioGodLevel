@@ -19,18 +19,39 @@ const ChartComponent = () => {
   const [selectedValueColumns, setSelectedValueColumns] = useState([]);
   const [maxItems, setMaxItems] = useState(10);
   const [sortBy, setSortBy] = useState('value');
-  
-  // 🔥 FUNÇÃO ATUALIZADA: Formatar nome da coluna com traduções
+
+  // Extrai prefixo da tabela do nome da coluna
+  const extractTablePrefix = (columnName) => {
+    const parts = columnName.split('_');
+    for (let i = 0; i < parts.length; i++) {
+      const potentialTableName = parts.slice(0, i + 1).join('_');
+      if (translations.tables[potentialTableName]) {
+        return potentialTableName;
+      }
+    }
+    return '';
+  };
+
+  // Formatação fallback do nome da coluna
+  const formatColumnNameFallback = (columnName) => {
+    const words = columnName.split('_');
+    const capitalizedWords = words.map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    );
+    return capitalizedWords.join(' ');
+  };
+
+  // Formata nome da coluna com traduções
   const formatColumnName = (columnName) => {
     if (!columnName) return '';
     
-    // 1️⃣ PRIMEIRO: Busca tradução exata no dicionário
+    // Busca tradução exata no dicionário
     const exactTranslation = translations.columns[columnName];
     if (exactTranslation) {
       return exactTranslation;
     }
     
-    // 2️⃣ SEGUNDO: Para colunas com prefixos de agregação
+    // Processa colunas com prefixos de agregação
     const aggregationPrefixes = ['sum_', 'avg_', 'count_', 'max_', 'min_'];
     for (const prefix of aggregationPrefixes) {
       if (columnName.startsWith(prefix)) {
@@ -48,7 +69,7 @@ const ChartComponent = () => {
           return prefixTranslations[prefix];
         }
         
-        // 🔥 NOVO: Se não encontrou tradução para a coluna base, tenta traduzir a tabela
+        // Tenta traduzir a tabela se não encontrou tradução para coluna base
         const tableName = extractAndTranslateTableName(baseColumn);
         if (tableName) {
           const columnWithoutTable = baseColumn.replace(new RegExp(`^${extractTablePrefix(baseColumn)}_?`), '');
@@ -66,7 +87,7 @@ const ChartComponent = () => {
       }
     }
     
-    // 3️⃣ TERCEIRO: Tenta traduzir nome da tabela + coluna
+    // Tenta traduzir nome da tabela + coluna
     const tableName = extractAndTranslateTableName(columnName);
     if (tableName) {
       const columnWithoutTable = columnName.replace(new RegExp(`^${extractTablePrefix(columnName)}_?`), '');
@@ -74,32 +95,11 @@ const ChartComponent = () => {
       return `${tableName} - ${columnTranslation}`;
     }
     
-    // 4️⃣ QUARTO: Fallback - Formatação básica
+    // Fallback: formatação básica
     return formatColumnNameFallback(columnName);
   };
 
-  // 🔥 FUNÇÃO AUXILIAR: Extrai prefixo da tabela
-  const extractTablePrefix = (columnName) => {
-    const parts = columnName.split('_');
-    for (let i = 0; i < parts.length; i++) {
-      const potentialTableName = parts.slice(0, i + 1).join('_');
-      if (translations.tableNames[potentialTableName]) {
-        return potentialTableName;
-      }
-    }
-    return '';
-  };
-
-  // 🔥 FUNÇÃO AUXILIAR: Formatação fallback do nome da coluna
-  const formatColumnNameFallback = (columnName) => {
-    const words = columnName.split('_');
-    const capitalizedWords = words.map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    );
-    return capitalizedWords.join(' ');
-  };
-
-  // Detectar colunas categóricas automaticamente
+  // Detecta colunas categóricas automaticamente
   const categoricalColumns = useMemo(() => {
     if (!Array.isArray(columns)) return [];
     
@@ -121,7 +121,7 @@ const ChartComponent = () => {
     });
   }, [columns]);
 
-  // Detectar colunas de valor automaticamente
+  // Detecta colunas de valor automaticamente
   const valueColumns = useMemo(() => {
     if (!Array.isArray(columns)) return [];
     
@@ -147,74 +147,53 @@ const ChartComponent = () => {
     }).map(col => col.dataKey || col.column);
   }, [columns]);
 
-  // Selecionar automaticamente a primeira coluna de valor e primeiras categorias
+  // Seleciona automaticamente a primeira coluna de valor
   useEffect(() => {
     if (Array.isArray(valueColumns) && valueColumns.length > 0 && selectedValueColumns.length === 0) {
       setSelectedValueColumns([valueColumns[0]]);
     }
   }, [valueColumns, selectedValueColumns.length]);
 
+  // Seleciona automaticamente as primeiras categorias
   useEffect(() => {
     if (Array.isArray(categoricalColumns) && categoricalColumns.length > 0 && selectedCategories.length === 0) {
-      // Selecionar os primeiros campos categóricos (não os valores)
       const firstCategories = categoricalColumns.slice(0, 2).map(col => col.dataKey || col.column);
       setSelectedCategories(firstCategories);
     }
   }, [categoricalColumns, selectedCategories.length]);
 
-  // 🔥 CORREÇÃO: Função para manipular o fechamento do modal
+  // Manipula o fechamento do modal
   const handleModalClose = (result) => {
     if (result) {
       setSelectedCategories(result.categories || []);
       setSelectedValueColumns(result.valueColumns || []);
-      
-      // 🔥 APLICAR OS LIMITES E ORDENAÇÃO
       setMaxItems(result.maxItems || 10);
       setSortBy(result.sortBy || 'value');
-      
-      console.log('🔍 [CHART] Configurações aplicadas:', {
-        maxItems: result.maxItems,
-        sortBy: result.sortBy,
-        categories: result.categories,
-        valueColumns: result.valueColumns
-      });
     }
     setModalOpen(false);
   };
 
-  // 🔥 CORREÇÃO: Prepara dados para o gráfico COM LIMITES E ORDENAÇÃO
+  // Prepara dados para o gráfico com limites e ordenação
   const chartData = useMemo(() => {
-    // 🔥 CORREÇÃO: Verificação mais segura para rows
     if (!Array.isArray(rows) || rows.length === 0 || 
         !Array.isArray(selectedCategories) || selectedCategories.length === 0 || 
         !Array.isArray(selectedValueColumns) || selectedValueColumns.length === 0) {
       return null;
     }
 
-    console.log('🔍 [CHART] Gerando dados com:', {
-      maxItems,
-      sortBy,
-      categories: selectedCategories,
-      metrics: selectedValueColumns,
-      totalRows: rows.length
-    });
-
     // Agrupa dados pelas categorias selecionadas
     const grouped = {};
     
     rows.forEach(row => {
-      // Cria uma chave única baseada nas categorias selecionadas
       const groupKey = selectedCategories.map(cat => row[cat] || 'N/A').join(' - ');
       
       if (!grouped[groupKey]) {
         grouped[groupKey] = {};
-        // Inicializa todas as métricas para este grupo
         selectedValueColumns.forEach(valueCol => {
           grouped[groupKey][valueCol] = 0;
         });
       }
       
-      // Soma cada valor selecionado
       selectedValueColumns.forEach(valueCol => {
         const value = parseFloat(row[valueCol]) || 0;
         grouped[groupKey][valueCol] += value;
@@ -227,28 +206,22 @@ const ChartComponent = () => {
       ...values
     }));
 
-    // 🔥 APLICAR ORDENAÇÃO
+    // Aplica ordenação
     if (sortBy === 'value') {
-      // Ordenar por valor (soma da primeira métrica selecionada)
       const primaryMetric = selectedValueColumns[0];
       groupedArray.sort((a, b) => (b[primaryMetric] || 0) - (a[primaryMetric] || 0));
-      console.log('🔍 [CHART] Ordenado por valor usando métrica:', primaryMetric);
     } else if (sortBy === 'alphabetical') {
-      // Ordenar alfabeticamente pelo label
       groupedArray.sort((a, b) => a.label.localeCompare(b.label));
-      console.log('🔍 [CHART] Ordenado alfabeticamente');
     }
 
-    // 🔥 APLICAR LIMITE DE ITENS
+    // Aplica limite de itens
     if (maxItems > 0 && groupedArray.length > maxItems) {
-      console.log('🔍 [CHART] Aplicando limite de', maxItems, 'itens. Total antes:', groupedArray.length);
       groupedArray = groupedArray.slice(0, maxItems);
-      console.log('🔍 [CHART] Total depois do limite:', groupedArray.length);
     }
 
     const labels = groupedArray.map(item => item.label);
 
-    // Para gráficos de barra/linha, usamos as métricas como datasets
+    // Para gráficos de barra/linha
     if (chartType === 'bar' || chartType === 'line') {
       const datasets = [];
       
@@ -261,7 +234,7 @@ const ChartComponent = () => {
         const data = groupedArray.map(item => item[valueCol]);
         
         datasets.push({
-          label: formatColumnName(valueCol), // 🔥 ATUALIZADO: Usa função de formatação traduzida
+          label: formatColumnName(valueCol),
           data: data,
           borderColor: colors[valueIndex % colors.length],
           backgroundColor: chartType === 'line' 
@@ -275,7 +248,7 @@ const ChartComponent = () => {
       return { labels, datasets };
     }
     
-    // Para gráficos de pizza/doughnut, usamos a primeira métrica
+    // Para gráficos de pizza/doughnut
     else if (chartType === 'pie' || chartType === 'doughnut') {
       const primaryMetric = selectedValueColumns[0];
       const data = groupedArray.map(item => item[primaryMetric]);
@@ -305,17 +278,17 @@ const ChartComponent = () => {
     sortBy
   ]);
 
-  // Função para manipular mudanças nas categorias
+  // Manipula mudanças nas categorias
   const handleCategoriesChange = (newCategories) => {
     setSelectedCategories(newCategories || []);
   };
 
-  // Função para manipular mudanças nas colunas de valor
+  // Manipula mudanças nas colunas de valor
   const handleValueColumnsChange = (newValueColumns) => {
     setSelectedValueColumns(newValueColumns || []);
   };
 
-  // 🔥 FUNÇÃO ATUALIZADA: Gerar título do gráfico com nomes traduzidos
+  // Gera título do gráfico com nomes traduzidos
   const generateChartTitle = () => {
     if (!Array.isArray(selectedCategories) || selectedCategories.length === 0) return 'Visualização de Dados';
     
@@ -329,13 +302,13 @@ const ChartComponent = () => {
     }
   };
 
-  // 🔥 FUNÇÃO ATUALIZADA: Gerar label do eixo X com nomes traduzidos
+  // Gera label do eixo X com nomes traduzidos
   const generateXAxisLabel = () => {
     if (!Array.isArray(selectedCategories) || selectedCategories.length === 0) return 'Eixo X';
     return selectedCategories.map(formatColumnName).join(', ');
   };
 
-  // 🔥 FUNÇÃO ATUALIZADA: Gerar label do eixo Y com nomes traduzidos
+  // Gera label do eixo Y com nomes traduzidos
   const generateYAxisLabel = () => {
     if (!Array.isArray(selectedValueColumns) || selectedValueColumns.length === 0) return 'Valor';
     
@@ -346,7 +319,7 @@ const ChartComponent = () => {
     }
   };
 
-  // Parte que renderiza o gráfico
+  // Renderiza o gráfico
   useEffect(() => {
     if (!chartData || !chartRef.current) return;
 
@@ -369,7 +342,7 @@ const ChartComponent = () => {
         },
         title: {
           display: true,
-          text: generateChartTitle() // 🔥 ATUALIZADO: Usa função com nomes traduzidos
+          text: generateChartTitle()
         }
       }
     };
@@ -380,13 +353,13 @@ const ChartComponent = () => {
         x: {
           title: {
             display: true,
-            text: generateXAxisLabel() // 🔥 ATUALIZADO: Usa função com nomes traduzidos
+            text: generateXAxisLabel()
           }
         },
         y: {
           title: {
             display: true,
-            text: generateYAxisLabel() // 🔥 ATUALIZADO: Usa função com nomes traduzidos
+            text: generateYAxisLabel()
           },
           beginAtZero: true
         }
@@ -403,6 +376,12 @@ const ChartComponent = () => {
       if (chartInstance.current) chartInstance.current.destroy();
     };
   }, [chartData, chartType, selectedValueColumns, selectedCategories]);
+
+  // Reseta seleções do gráfico quando os dados mudam
+  useEffect(() => {
+    setSelectedCategories([]);
+    setSelectedValueColumns([]);
+  }, [result.rows]);
 
   return (
     <div className="chart-wrapper">
