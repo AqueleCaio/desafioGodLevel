@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { Chart } from 'chart.js/auto';
 import '../styles/Chart.css';
-import { useQuery } from '../context/queryContext';
 import ModalChart from './modalChart';
 import { FaChartBar, FaChartLine, FaChartPie, FaDotCircle, FaSlidersH } from 'react-icons/fa';
 import { translations, extractAndTranslateTableName } from '../services/frontController';
+import { useQuery } from '../context/queryContext';
 
 const ChartComponent = () => {
   const chartRef = useRef(null);
