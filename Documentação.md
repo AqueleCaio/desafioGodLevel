@@ -15,13 +15,59 @@ Abaixo estão as partes mais importantes do código e o que acontece em cada uma
 
 ### 1. `back/index.js` — Principais rotas do backend e base do servidor
 
-<img src="./images/serverconfig.png" width=440 height=440>
+```js
+// Configuração do servidor
+const express = require('express');
+const cors = require('cors');
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(express.json());
+```
 
 O arquivo **index.js** inicializa o servidor Express, configura CORS e define as rotas principais (por exemplo, `/query-report` para geração de relatórios).
 
 Esta rota recebe o payload gerado no frontend e envia para a função no `back/backController.js` chamada `helperDataReport`.
 
-<img src="./images/queryreport.png" width=460 height=460>
+
+```js
+// Executa consulta e retorna resultado
+app.post('/query-report', async (req, res) => {
+  try {
+    const payload = req.body;
+
+    // Monta as partes da query
+    const {
+      selectPart,
+      fromPart,
+      wherePart,
+      groupByPart,
+      havingPart,
+      orderByPart
+    } = helperDataReport(payload);
+
+    // Executa a query completa
+    const { result } = await builderQuery({
+      selectPart,
+      fromPart,
+      wherePart,
+      groupByPart,
+      havingPart,
+      orderByPart,
+    });
+
+    res.json({ result });
+
+  } catch (err) {
+    console.error('Erro ao processar /query-report:', err);
+    res.status(500).json({
+      error: 'Erro ao gerar relatório',
+      details: err.message,
+    });
+  }
+});
+```
 
 **Explicação:**
 
@@ -36,7 +82,53 @@ Esta rota recebe o payload gerado no frontend e envia para a função no `back/b
 Este módulo é responsável por **processar o payload** vindo do frontend antes de passá-lo para a camada de acesso ao banco.
 Ele valida, normaliza e garante que as instruções SQL sejam seguras.
 
-<img src="./images/helperDataReport.png" width=540 height=540>
+
+```js
+// Função principal para montar partes da query
+function helperDataReport(payload) {
+  try {
+    // Valida e extrai dados do payload
+    const tables = payload.tables || [];
+    if (!Array.isArray(tables) || tables.length === 0) {
+      throw new Error('É necessário informar ao menos uma tabela em payload.tables');
+    }
+
+    const joinType = payload.joinType || 'INNER JOIN';
+    const columnsArr = normalizeColumns(payload.columns);
+    const aggregationArr = normalizeAggregation(payload.aggregation);
+    const filters = Array.isArray(payload.filters) ? payload.filters : [];
+    const orderBy = payload.orderBy || null;
+    const having = payload.having || null;
+    
+    // Define GROUP BY padrão se houver agregações
+    let groupBy = payload.groupBy || null;
+    if (!groupBy && aggregationArr.length > 0) {
+      groupBy = columnsArr.length > 0 ? [...columnsArr] : null;
+    }
+
+    // Monta as partes da query
+    const selectPart = buildSelectPart(columnsArr, aggregationArr);
+    const fromPart = buildFromPart(tables, joinType);
+    const wherePart = buildWherePart(filters);
+    const groupByPart = buildGroupByPart(groupBy);
+    const havingPart = buildHavingPart(having);
+    const orderByPart = buildOrderByPart(orderBy, columnsArr);
+
+    return {
+      selectPart,
+      fromPart,
+      wherePart,
+      groupByPart,
+      havingPart,
+      orderByPart
+    };
+
+  } catch (err) {
+    console.error('Erro ao processar dados do relatório:', err);
+    throw err;
+  }
+}
+```
 
 **Explicação:**
 
@@ -52,7 +144,43 @@ Ele valida, normaliza e garante que as instruções SQL sejam seguras.
 Esse componente é o **núcleo das consultas SQL**.
 Recebe o payload já tratado e executa a consulta via Prisma ou `queryRaw`.
 
-<img src="./images/haldofbuilderQuery.png" width=440 height=440>
+
+```js
+// Monta a query base com as partes fornecidas
+const queryParts = [
+  `SELECT ${selectPart}`,
+  `FROM ${fromPart}`,
+  wherePart && `WHERE ${wherePart}`,
+  groupByPart && `GROUP BY ${groupByPart}`,
+  havingPart && `HAVING ${havingPart}`,
+  orderByPart && `ORDER BY ${orderByPart}`
+].filter(Boolean);
+
+let fullQuery = queryParts.join('\n').trim();
+
+// Adiciona LIMIT padrão se não foi definido pelo usuário
+const hasLimit = /\blimit\b/i.test(fullQuery);
+if (!hasLimit) {
+  fullQuery += `\nLIMIT 1000`;
+}
+
+fullQuery += ';';
+
+console.log('Query final montada no DAO:\n', fullQuery);
+console.log('\n----------------------------------\n');
+
+try {
+  // Faz a consulta e manda para a variável result
+  const result = await prisma.$queryRawUnsafe(fullQuery);
+
+  console.log('Query executada com sucesso. Resultados (até 10 linhas):', result.slice(0, 10));
+
+  return { result, fullQuery };
+} catch (err) {
+  console.error('Erro ao executar query no builderQuery:', err);
+  throw err;
+}
+```
 
 **Explicação:**
 
@@ -69,7 +197,62 @@ Recebe o payload já tratado e executa a consulta via Prisma ou `queryRaw`.
 Este é o **componente central** da parte de filtros.
 Ele coleta todas as informações selecionadas pelo usuário (tabelas, colunas, filtros, agregações, joins) e monta o **payload JSON** que será enviado ao backend.
 
-<img src="./images/handlegr.png" width=440 height=440>
+
+```js
+// Gera relatório com os filtros configurados
+const handleGenerateReport = async () => {
+  // Valida se há tabelas selecionadas
+  if (selectedTables.length === 0) {
+    setTableError(true);
+    // Rola a tela até a seção de tabelas
+    const tablesSection = document.querySelector('.section');
+    if (tablesSection) {
+      tablesSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return;
+  }
+
+  setIsGenerating(true);
+  
+  try {
+    const validFilters = filters.filter(filter => 
+      filter && filter.column && filter.value
+    );
+    
+    const validOrderBy = orderBy.filter(ob => 
+      ob && ob.column
+    );
+
+    const validAggregation = selectedAgg.filter(agg => 
+      agg && agg.func && agg.column
+    );
+
+    const payload = {
+      tables: selectedTables.map(name => ({ name })),
+      joinType,
+      columns: selectedColumns.map(col => ({ column: col })),
+      aggregation: validAggregation || [], 
+      having: having || [],
+      filters: validFilters,
+      ...(validOrderBy.length > 0 ? { orderBy: validOrderBy } : {})
+    };
+
+    const result = await handleReportGeneration(payload);
+
+    setQuery(result.query);
+    setResult({
+      rows: result.report?.result || [],
+      columns: result.report?.result?.length
+        ? Object.keys(result.report.result[0]).map(key => ({ dataKey: key, label: key, width: 120 }))
+        : []
+    });
+  } catch (error) {
+    console.error('Erro ao gerar relatório:', error);
+  } finally {
+    setIsGenerating(false);
+  }
+};
+```
 
 **Explicação:**
 
@@ -91,7 +274,28 @@ Ele coleta todas as informações selecionadas pelo usuário (tabelas, colunas, 
   Vale ressaltar que `src/components/filterMain.jsx` é o **principal componente** em relação a todos os filtros que se pode aplicar.
 Portanto, esse componente importa os outros componentes que irão compor o mesmo. Todos esses componentes estão presentes em `src/components/filter/`
 
-<img src="./images/filtermain.png" width=440 height=440>
+
+```js
+import React, { useState, useEffect } from 'react';
+import '../styles/Filters.css';
+import question from '../../public/assets/tooltip.png';
+import { getTableNames, 
+         getTableAttributes, 
+         getAllRelatedTables, 
+         handleReportGeneration } from '../services/frontController';
+import { useQuery } from '../context/queryContext';
+
+import Tables from './filter/tables';
+import TypeJoin from './filter/typeJoin';
+import Columns from './filter/columns';
+import Agregation from './filter/agreggation';
+import FiltersSection from './filter/filters';
+import OrderBy from './filter/orderBy';
+
+import { FaBars, FaTimes } from 'react-icons/fa';
+
+function FilterMain() {
+```
 
 ---
 
@@ -104,7 +308,32 @@ Perfeito! Podemos atualizar a seção do `frontController.js` para incluir que e
 Esse módulo é responsável por **enviar o payload do frontend para o backend**, receber as respostas de geração de relatório e visualização de query, **e traduzir os nomes das tabelas e colunas** para exibição amigável na interface.
 Ele é utilizado no componente `src/components/filterMain.jsx` quando o usuário solicita a geração de um relatório.
 
-<img src="./images/justhandle.png" width=440 height=440>
+
+
+```js
+// Processa geração de relatório distribuindo o payload
+export async function handleReportGeneration(payload) {
+  try {
+    const [reportResult, queryResult] = await Promise.all([
+      postDataReport(payload),
+      postQueryToView(payload)
+    ]);
+
+    return {
+      report: reportResult,
+      query: queryResult
+    };
+
+  } catch (err) {
+    console.error('Erro no processamento do relatório:', err);
+    return { 
+      error: 'Erro no processamento do relatório',
+      report: null,
+      query: null
+    };
+  }
+}
+```
 
 **Principais funções de consulta ao backend:**
 
@@ -175,8 +404,41 @@ Usuário → filterMain.jsx → handleReportGeneration(payload)
         ↳ postDataReport(payload) → /query-report → dados do relatório
         ↳ postQueryToView(payload) → /query-to-view → string SQL
 ```
+```js 
+// Envia dados para geração de relatório
+export async function postDataReport(payload) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/query-report`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    return await res.json();
+  } catch (err) {
+    console.error('Erro ao enviar dados para relatório:', err);
+    return { error: 'Erro ao enviar dados para relatório' };
+  }
+}
 
-<img src="./images/twoaux.png" width=440 height=440>
+// Envia dados e recebe query SQL para visualização
+export async function postQueryToView(payload) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/query-to-view`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const { fullQuery } = await res.json();
+    return fullQuery;
+  } catch (err) {
+    console.error('Erro ao buscar consulta para visualização:', err);
+    return '';
+  }
+}
+```
 
 **Comportamento técnico:**
 
@@ -193,7 +455,17 @@ Usuário → filterMain.jsx → handleReportGeneration(payload)
 
 Este componente utiliza **Chart.js** para gerar gráficos interativos baseados nos dados retornados pelo backend.
 
-<img src="./images/initchartcomponent.png" width=440 height=440>
+
+```js
+import { useQuery } from '../context/queryContext';
+
+const ChartComponent = () => {
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
+
+  const { result } = useQuery();
+  const { rows = [], columns = [] } = result || {};
+```
 
 **Explicação:**
 
@@ -208,7 +480,30 @@ Este componente utiliza **Chart.js** para gerar gráficos interativos baseados n
 O **QueryContext** armazena os estados globais das seleções e resultados.
 Assim, diferentes componentes (tabela, gráfico, código SQL) podem reagir às mudanças de forma sincronizada.
 
-<img src="./images/context.png" width=440 height=440>
+
+```js
+import { createContext, useContext, useState } from 'react';
+
+const QueryContext = createContext();
+
+export function QueryProvider({ children }) {
+  const [query, setQuery] = useState(''); // query SQL
+  const [result, setResult] = useState({   // resultado da consulta
+    rows: [],
+    columns: [],
+  });
+
+  return (
+    <QueryContext.Provider value={{ query, setQuery, result, setResult }}>
+      {children}
+    </QueryContext.Provider>
+  );
+}
+
+export function useQuery() {
+  return useContext(QueryContext);
+}
+```
 
 **Explicação:**
 
