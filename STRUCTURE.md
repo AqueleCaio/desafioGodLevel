@@ -13,14 +13,15 @@ Abaixo estão as partes mais importantes do código e o que acontece em cada uma
 
 ## Backend
 
-### 1. `back/index.js` — Ponto de entrada e rotas principais da API
+### 1. `back/index.js` — Principais rotas do backend e base do servidor
 
-![Descrição da imagem](images/serverconfig)
+<img src="./images/serverconfig.png" width=440 height=440>
 
 O arquivo **index.js** inicializa o servidor Express, configura CORS e define as rotas principais (por exemplo, `/query-report` para geração de relatórios).
 
 Esta rota recebe o payload gerado no frontend e envia para a função no `back/backController.js` chamada `helperDataReport`.
-![Descrição da imagem](images/queryreport)
+
+<img src="./images/queryreport.png" width=460 height=460>
 
 **Explicação:**
 
@@ -35,7 +36,7 @@ Esta rota recebe o payload gerado no frontend e envia para a função no `back/b
 Este módulo é responsável por **processar o payload** vindo do frontend antes de passá-lo para a camada de acesso ao banco.
 Ele valida, normaliza e garante que as instruções SQL sejam seguras.
 
-![Descrição da imagem](images/helperDataReport)
+<img src="./images/helperDataReport.png" width=540 height=540>
 
 **Explicação:**
 
@@ -51,7 +52,7 @@ Ele valida, normaliza e garante que as instruções SQL sejam seguras.
 Esse componente é o **núcleo das consultas SQL**.
 Recebe o payload já tratado e executa a consulta via Prisma ou `queryRaw`.
 
-![Descrição da imagem](images/halfofbuilderQuery)
+<img src="./images/haldofbuilderQuery.png" width=440 height=440>
 
 **Explicação:**
 
@@ -68,7 +69,7 @@ Recebe o payload já tratado e executa a consulta via Prisma ou `queryRaw`.
 Este é o **componente central** da parte de filtros.
 Ele coleta todas as informações selecionadas pelo usuário (tabelas, colunas, filtros, agregações, joins) e monta o **payload JSON** que será enviado ao backend.
 
-![Descrição da imagem](images/handlegr)
+<img src="./images/handlegr.png" width=440 height=440>
 
 **Explicação:**
 
@@ -94,7 +95,7 @@ Ele coleta todas as informações selecionadas pelo usuário (tabelas, colunas, 
 Esse módulo é responsável por **enviar o payload do frontend para o backend** e receber as respostas de geração de relatório e visualização de query.
 Ele é utilizado no componente `src/components/filterMain.jsx` no momento em que o usuário clica para gerar um relatório.
 
-![Descrição da imagem](images/justhandle)
+<img src="./images/justhandle.png" width=440 height=440>
 
 **Explicação:**
 
@@ -114,9 +115,7 @@ Usuário → filterMain.jsx → handleReportGeneration(payload)
         ↳ postQueryToView(payload) → /query-to-view → string SQL
 ```
 
-![Descrição da imagem](images/twoaux)
-![Descrição da imagem](images/posttoview)
-![Descrição da imagem](images/postdata)
+<img src="./images/twoaux.png" width=440 height=440>
 
 **Comportamento técnico:**
 
@@ -131,7 +130,7 @@ Usuário → filterMain.jsx → handleReportGeneration(payload)
 
 Este componente utiliza **Chart.js** para gerar gráficos interativos baseados nos dados retornados pelo backend.
 
-![Descrição da imagem](images/initchartcomponent)
+<img src="./images/initchartcomponent.png" width=440 height=440>
 
 **Explicação:**
 
@@ -146,7 +145,7 @@ Este componente utiliza **Chart.js** para gerar gráficos interativos baseados n
 O **QueryContext** armazena os estados globais das seleções e resultados.
 Assim, diferentes componentes (tabela, gráfico, código SQL) podem reagir às mudanças de forma sincronizada.
 
-![Descrição da imagem](images/context)
+<img src="./images/context.png" width=440 height=440>
 
 **Explicação:**
 
