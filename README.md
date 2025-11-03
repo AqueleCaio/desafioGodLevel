@@ -127,13 +127,13 @@ A documentação detalhada da estrutura pode ser consultada em [Documentação](
    python generate_data.py
    ```
 
-5. **Inicie o servidor**
+6. **Inicie o servidor**
 
    ```bash
    node index.js
    ```
 
-6. **Inicie o frontend**
+7. **Inicie o frontend**
 
    ```bash
    cd ../App
@@ -141,7 +141,7 @@ A documentação detalhada da estrutura pode ser consultada em [Documentação](
    npm run dev
    ```
 
-7. Acesse o sistema em:
+8. Acesse o sistema em:
    [http://localhost:5173](http://localhost:5173)
 
 ---
