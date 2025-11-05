@@ -122,18 +122,19 @@ A documentação detalhada da estrutura pode ser consultada em [Documentação](
    ```
 
 5. **Alimente o banco**
+   
    Depois de ter criado o banco, agora será necessário alimentá-lo com os dados utilizando o `back/generate_data.py`
    ```bash
    python generate_data.py
    ```
 
-6. **Inicie o servidor**
+7. **Inicie o servidor**
 
    ```bash
    node index.js
    ```
 
-7. **Inicie o frontend**
+8. **Inicie o frontend**
 
    ```bash
    cd ../App
@@ -141,7 +142,7 @@ A documentação detalhada da estrutura pode ser consultada em [Documentação](
    npm run dev
    ```
 
-8. Acesse o sistema em:
+9. Acesse o sistema em:
    [http://localhost:5173](http://localhost:5173)
 
 ---
